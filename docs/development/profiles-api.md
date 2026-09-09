@@ -1,6 +1,6 @@
 # Profile·배포 API 설계
 
-연결: FR-004, FR-006, FR-007, FR-012, FR-013, FR-019, FR-020.
+연결: FR-004, FR-006, FR-007, FR-012, FR-013, FR-017, FR-019, FR-020.
 상세 매칭·API 경로·정책은 설계 제안이며 남은 선택은 [D-04/D-05](workflow.md)에 기록합니다.
 권한·프록시·인증은 [보안·운영](security-operations.md)의 계약을 따릅니다.
 
@@ -21,6 +21,7 @@ Allowlist에 해당한다는 것은 안전성 판정이 아니라 해당 출력�
 | `indicator_types` | IP/CIDR/Domain/URL 중 허용한 타입 |
 | `selection_rules` | 출처 수 등 지원이 확정된 선택 조건 |
 | `enrichment_policy` | 선택 조건에 필요한 보강 항목과 만료 처리 |
+| `freshness_policy` | Source별 필수 여부·stale 허용, DNS missing/stale 기여 포함 여부와 제공 기한 평가 |
 | `allowlist_refs` | 적용할 Allowlist ID와 정확한 버전 |
 | `output_contract_ref` | 형식·정렬·분할·엔드포인트 계약 버전 |
 | `enabled` | 예약 생성·게시 대상 여부 |
@@ -78,6 +79,39 @@ IP 예외가 큰 CIDR과 일부만 겹치면 해당 CIDR이 IP를 계속 포함�
 Domain의 URL host 적용, 신뢰 도메인의 DNS 파생 IP 제외는 명시 교차 타입 정책으로만 허용한다.
 공유 IP 전체를 근거 없이 제외하지 않고 부모 도메인·파생 경로를 검사한다.
 직접 수집 IP와 DNS 파생 IP의 동일 주소가 병존하면 각각의 출처·제외 근거를 유지한다.
+
+### Source·DNS 기여와 Output 제공 수명
+
+다음은 D-03/D-05에 연결된 설계 제안이다. Source 최신성의 시각·필드는 [데이터 계약](architecture.md), DNS 관계의 제거 조건은 [DNS 변화 이력](pipeline.md)을 따른다.
+
+| Source의 기준 시각 후 경과 | 상태 | 생성 입력 처리 |
+| --- | --- | --- |
+| `age < stale_after` | `fresh` | 유효한 기여를 포함 |
+| `stale_after <= age < expire_after` | `stale` | Profile이 허용한 경우에만 최근 검증본의 기여를 포함하고 경고 |
+| `age >= expire_after` | `expired` | 해당 Source 기여를 제외; 원문·이력은 retention에 따라 보존 |
+
+24시간 주기 일반 Source에는 stale 72시간·expire 7일을 초기 제안으로 둔다. 분기·연간 자료에는 이를 일괄 적용하지 않고 제공 대상 기간·발행 주기에 맞춘 유한한 기한을 명시한다.
+미설정·역전된 기한은 활성화 검증에서 거부한다. stale/missing 기여 포함도 명시 설정이며 묵시적으로 무기한 허용하지 않는다.
+DNS 파생 기여는 Source와 부모 Domain 근거가 유효하고 DNS 자체 수명도 허용될 때만 포함한다. 어느 한 조건의 만료를 다른 조건의 갱신으로 연장하지 않는다.
+만료된 Source/파생 경로를 제외해도 같은 IP에 다른 유효 기여가 있으면 그 근거로 유지하고 /24 집계 근거도 다시 계산한다.
+
+Source의 `required` 여부는 Profile 버전에 명시한다. 선택 Source의 만료는 제외 사유를 기록한 새 generation으로 반영하며 다른 유효 Source의 출력은 계속 생성할 수 있다.
+필수 Source를 사용할 수 없거나, 전체 만료·stale 불허·초기 조회 실패 등으로 정책상 사용할 수 있는 Source 스냅샷이 하나도 없으면 `unavailable`로 처리한다. 이를 정상 빈 Feed로 게시하지 않는다.
+유효한 입력을 완전히 평가한 결과가 비어 있는 경우만 D-05의 정상 빈 결과 정책으로 처리한다.
+정책에 따라 제외한 Source와 필수 샤드 segment 누락을 혼동하지 않으며, 남은 필수 segment는 모두 검증해야 게시할 수 있다.
+
+Output 상태는 `healthy`(선택 입력 정상), `degraded`(허용된 stale/missing 또는 선택 Source 제외), `unavailable`(제공 가능한 완전본 없음)로 구분한다.
+manifest에는 제외 사유와 사용한 기여의 기한을 기록한다. `serve_until`은 포함한 Source·DNS 기여의 최대 수명과, stale를 허용하지 않을 때의 stale 시작 시각 등 적용되는 제공 중단 기한 중 가장 이른 시각이다.
+정상 누락/음성 응답의 제거 확정·부모 근거 해제·허용하지 않은 missing 전이 등으로 유효성이 먼저 끝나면 종속 revision의 제공 자격을 회수하고 재생성을 요청한다.
+
+- 만료 전에 재평가를 예약하고 새 입력으로 검증한 불변 revision을 게시한다. 다운로드 중 기존 파일에서 항목을 동적으로 빼거나 같은 revision을 덮어쓰지 않는다.
+- 새 생성이 실패해도 이전 revision은 현재 제공 자격이 있고 `now < serve_until`일 때만 제공한다. 같은 입력의 재생성·재게시로 기한을 초기화하지 않는다.
+- `now >= serve_until` 또는 회수된 revision에는 인증·권한 확인 후 `503`을 반환하고 Feed 본문은 보내지 않는다. 현재/이전 revision·manifest·changes·checksum·HEAD·조건부 GET/304 모두 동일 자격을 검사한다.
+- 캐시가 상한 이후 본문/304를 제공하지 않도록 재검증하고, 회수 시 무효화한다. `changes`의 기준/대상 revision도 각각 검사한다.
+- 기한 내 `healthy`/`degraded` 출력은 `200`, stale 기여가 포함되면 `X-Feed-Stale: true`를 제공한다. 상태·경고는 고정 입력의 기준 시각과 요청 시각으로 판정하며 본문은 고정한다. 상세 상태·기한·사유는 관리 상태 API에서 보여준다.
+- 이전 revision의 7일 조회 보존 제안은 serve_until·정책 회수보다 우선하지 않으며 파일의 물리 보존과도 별개다.
+
+서버의 제공 중단이 소비자가 이미 받은 차단 목록의 자동 해제를 보장하지는 않는다. 소비자별 `503`·정상 빈 결과의 처리와 재수신 동작은 수용 시험으로 확인한다.
 
 ## 수집 예외
 

@@ -67,6 +67,7 @@ TLS 종료 위치와 실제 peer 주소 해석을 배포 설정에 명시한다.
 인증 후 Nginx X-Accel-Redirect 등 내부 전송으로 immutable artifact를 제공하는 기준선이다.
 내부 파일을 public alias로 공개하지 않는다. 객체 저장소도 동등한 권한·회수 계약을 만족해야 한다.
 manifest/checksum/changes/HEAD/304/이전 revision에 동일 권한을 적용한다.
+동일 경로에 [Output 제공 수명](profiles-api.md)의 현재 시각·serve_until·회수 검사도 적용하여, 인증 성공이나 캐시 적중이 만료된 Feed 제공을 허용하지 않게 한다.
 인증 결과를 공유 캐시에 섞지 않으며 정책 변경 후 이전 URL·캐시의 접근 우회를 막는다.
 
 ## Docker·소스 설치의 동등성
@@ -144,6 +145,7 @@ LDAP 비활성화·이름 변경·sync 실패, SAML 서명/시간/재생/잘못�
 - Profile별 현재 revision, 게시 시각, 마지막 성공 게시 및 구성 revision을 기록한다.
 - 실패한 시도는 기존 `last_success_at`을 갱신하지 않는다.
 - 재시작 중이거나 수집 실패 상태에서도 현재 정상 revision의 식별자를 유지한다.
+- revision 식별자 보존과 제공 가능 여부를 구분한다. Source/DNS 기여 만료의 재평가·재생성을 예약하고, 새 게시가 실패해도 제공 기한 초과 또는 회수된 파일은 제공하지 않는다.
 - Source 사용 중지, 수집 실패, 유효한 빈 Feed, 파싱 실패를 구분한다.
 - 빈 결과를 게시할 조건은 D-05에서 확정하며, 전량 파싱 실패를 빈 정상 결과로 처리하지 않는다.
 

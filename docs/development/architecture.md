@@ -72,7 +72,7 @@ Control DB 마이그레이션은 Laravel이 소유한다.
 | `enrichment` | id, indicator_id, kind, provider, observed_at, expires_at, status, payload | 공급자·시점별 결과 유지 |
 | `profile_version` | profile_id, version, definition, content_hash, created_at | 발행된 버전은 변경하지 않음 |
 | `allowlist_version` | allowlist_id, version, entries, content_hash, created_at | 활성 버전과 이력 분리 |
-| `generation_run` | id, profile_version_id, input_manifest, status, generated_at | 사용한 스냅샷·정책·보강 결과 ID 고정 |
+| `generation_run` | id, profile_version_id, input_manifest, status, generated_at | 사용한 스냅샷·정책·보강 결과 ID와 수명 평가 근거 고정 |
 | `artifact` | id, generation_run_id, format, path_ref, checksum, item_count, status | 검증된 생성 실행에 종속 |
 | `publication` | profile_id, output_contract_version, manifest_id, revision, published_at | 검증된 artifact 묶음의 현재 포인터 |
 
@@ -110,6 +110,26 @@ parser/normalizer·DNS/ASN 정책과 보강 결과, 평가 시각, 출력 계약
 - 만료 지표의 출력 제외와 관측 이력의 물리 삭제는 독립된 정책으로 둔다.
 - 보존 기간이 확정되기 전에는 숫자 기본값을 운영 기준으로 취급하지 않는다.
 
+### 수명 평가와 이력 보존
+
+Source 최신성, Domain-IP 관계의 유효성, Output 제공 가능 여부, 이력의 물리 보존을 분리한다.
+아래 필드·규칙은 설계 제안이며 Source/보강 정책 버전에 포함한다.
+
+| 개념 | 기준·계약 |
+| --- | --- |
+| `last_seen` | 지표 또는 Domain-IP 관계를 실제로 확인한 시각; 출처 관측과 DNS 양성 관측의 값을 구분 |
+| `freshness_basis`, `freshness_at` | 일반 Source는 검증 완료한 수집 실행의 성공 시각, 기간 자료는 검증된 최신 대상 기간의 기준 시각으로 평가; 사용한 기준·시각을 스냅샷에 고정 |
+| `stale_after`, `expire_after` | 기준 시각부터 경고·기여 만료까지의 기간; 유한한 값이며 `0 < stale_after < expire_after`; DNS 관계는 pipeline의 전용 필드와 last_seen 사용 |
+| `retention` | 활성 출력에서 빠진 뒤에도 이력을 조회하기 위한 별도 물리 보존 정책; 만료 시 자동 DB 삭제를 뜻하지 않음 |
+| `serve_until` | Output manifest에 고정한 입력·정책으로 계산한 제공 상한 시각; artifact 생성·재게시만으로 연장 불가 |
+
+기간 자료의 freshness 기준은 어댑터가 발행/대상 기간과 완전성을 확인해 정한다. 과거 backfill이나 같은 기간 재다운로드로 기간 기준을 최신 시각으로 바꾸지 않는다.
+일반 Source의 동일 해시 재수집은 기존 FR-005처럼 새 관측이며 성공 시각을 갱신하되, 실패는 어느 freshness 기준도 갱신하지 않는다.
+DNS 관계의 missing/음성 확인 시각·카운터·종료 사유와 상태 전이는 [수집·보강](pipeline.md)을 단일 기준으로 사용한다.
+생성 입력 manifest는 수명 정책 버전·기준 시각·선택/제외한 Source 및 기여의 사유·기여별 만료 시각도 고정한다.
+재현은 고정 평가 시각으로 수행하고, 실제 다운로드 가능 여부는 [Output 수명 계약](profiles-api.md)에 따라 현재 시각·회수 상태로 별도 검사한다.
+retention 정리에서도 현재 제공본·보존 중 revision·진행 중 작업·백업이 참조하는 필수 입력과 정책은 참조 보호한다.
+
 ### 일관성과 검증
 
 - 스냅샷 검증 완료 표시와 활성화는 하나의 DB 트랜잭션으로 처리한다.
@@ -139,12 +159,12 @@ Timescale 확장과 물리 배치는 이 문서의 HA·출력 Feed 샤딩 절을
 | 엔터티 | 목적과 주요 제약 |
 | --- | --- |
 | `parser_version`, `resolver_policy`, `asn_dataset` | 파서·보강의 불변 설정과 활성 버전 |
-| `dns_observation`, `dns_membership_interval` | Resolver별 응답 및 도메인-IP 활성 구간 |
+| `dns_observation`, `dns_membership_interval` | 조회 회차·질의 타입·Resolver별 응답, 부모/출처/정책별 도메인-IP 상태·누락 사유와 활성 구간 |
 | `profile_source`, `profile_allowlist_group` | Profile의 다중 소스·그룹과 정확한 버전 연결 |
 | `exception_rule_set_version`, `monitor_rule`, `alert_event` | 불변 예외 집합·적용 범위 및 원본 관측 기반 경보 분리 |
 | `membership_interval` | Feed별 정제 지표의 활성 [start, end) 구간 |
 | `publication_membership_interval` | 실제 공개 스냅샷에 포함된 지표의 구간 |
-| `snapshot_manifest`, `snapshot_segment` | 정책·입력·routing epoch·필수 샤드·artifact 해시 목록 |
+| `snapshot_manifest`, `snapshot_segment` | 정책·입력·수명 평가 근거·serve_until·routing epoch·필수 샤드·artifact 해시 목록 |
 | `identity_provider`, `external_identity`, `role_assignment` | 불변 provider/subject, 권한 부여 출처와 회수 |
 | `job`, `job_attempt`, `outbox_event`, `consumed_message` | 영구 작업 상태·재시도·결과 중복 방지 |
 | `shard_catalog`, `bucket_mapping`, `indicator_directory`, `global_rollup` | 라우팅 버전과 재구축 가능한 조회 요약 |
@@ -155,6 +175,7 @@ Timescale 확장과 물리 배치는 이 문서의 HA·출력 Feed 샤딩 절을
 제거·재등장을 별도 구간으로 남기고 현재 연속 기간과 누적 기간을 구분한다.
 중첩 구간을 이중 합산하지 않으며 생성만 성공하고 게시 실패한 결과는 배포 기간에 넣지 않는다.
 다운로드 시각은 게시 기간과 별도의 접근 로그이다.
+제공 기한 만료·정책 회수로 새 revision 없이 제공을 중단한 경우에도 실제 게시 membership 구간을 종료하고 사유를 남긴다.
 distinct_source_count와 /24별 distinct_ip_count를 구분하고 Source 태그로 근거를 조회한다.
 rollup에는 기준 시각·지연을 표시하고 원본 이력과 재대조할 수 있어야 한다.
 전체 테이블의 소유권·고유 키·재처리 경계를 명시하고 Laravel의 단일 스키마 소유권을 따른다.
