@@ -1,6 +1,6 @@
 # Profile·배포 API 설계
 
-연결: FR-004, FR-006, FR-007, FR-012, FR-013, FR-017, FR-019, FR-020.
+연결: FR-004, FR-006, FR-007, FR-012, FR-013, FR-019, FR-020.
 상세 매칭·API 경로·정책은 설계 제안이며 남은 선택은 [D-04/D-05](workflow.md)에 기록합니다.
 권한·프록시·인증은 [보안·운영](security-operations.md)의 계약을 따릅니다.
 

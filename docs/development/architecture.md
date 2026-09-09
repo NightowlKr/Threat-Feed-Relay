@@ -132,7 +132,7 @@ DB 함수 차이는 repository/query adapter에 모은다.
 
 Control DB는 설정·정책·인증·권한·작업 원장·outbox·routing catalog를 소유한다.
 관측 저장소는 canonical 지표와 출처 관측, membership 저장소는 출력 Feed별 정제 상태와 사건을 보유한다.
-Timescale 확장과 물리 배치는 [클러스터·샤딩](architecture.md)을 따른다.
+Timescale 확장과 물리 배치는 이 문서의 HA·출력 Feed 샤딩 절을 따른다.
 
 ### 추가 논리 엔터티
 

@@ -8,21 +8,23 @@
 
 아래 ID를 유지하고 선택·근거·영향·확정일·검증 증거를 갱신합니다.
 확인된 방향은 세부 정책이나 기술 호환성까지 승인됐다는 의미가 아닙니다.
+"설계 제안" 열은 구현 전 제안값이며 실측·검증·외부 사실 확인 전에는 운영 기본값으로 확정된 것이 아닙니다.
+API·필드 등 문서 본문에 이미 구체 제안이 있는 항목은 중복 기술하지 않고 담당 문서를 참조합니다.
 
-| ID | 주제 | 확인된 방향 | 남은 결정 | 책임 문서 |
-| --- | --- | --- | --- | --- |
-| D-01 | 초기 Feed | 공공 WHOIS·분기 IoC·C-TAS 및 일반 Feed 연동 요청 | 최신 API·인증·주기·재배포 권리·샘플 승인 | [제공자](pipeline.md) |
-| D-02 | 정규화 | IPv4/IPv6/CIDR/Domain/URL, 여러 파서 | IDNA·host bit·URL 세부 규칙과 버전 | [파이프라인](pipeline.md) |
-| D-03 | 수명·이력 | DNS 변화·출처·정제 및 배포 등록 기간 추적 | TTL 외 지표 수명, 실패 유예, 원문·이력 보존 | [DB](architecture.md), [보강](pipeline.md) |
-| D-04 | Profile·예외 | 복제·다중 소스/Allowlist, 예외·모니터링, /24 승격 | 승격·해제 임계치, 교차 타입·부분 CIDR·예외 우선순위 | [Profile](profiles-api.md) |
-| D-05 | 출력 | TXT/CSV/JSON/hosts, 직접·파생·혼합 구분, 불변 스냅샷 기준선 | 경로·정렬·크기·stale·빈 결과·revision 보존 | [API](profiles-api.md) |
-| D-06 | 기술·DB | Laravel/Python 분리, 복수 DB, Timescale 선택 확장, 단일 스키마 소유권 | 실제 버전·패키지·DB 호환 CI·성능 | [아키텍처·데이터](architecture.md) |
-| D-07 | 운영 목표 | 로그·백업·오류 경보·복구·업데이트 요청 | 규모·지연·보관·RPO/RTO·알림 채널·임계치 | [운영](security-operations.md) |
-| D-08 | 인증·접근 | LDAP/AD·SAML·RBAC와 배포 4개 접근 모드 | IdP 연동 라이브러리·매핑·회수 시간·MFA·세션·감사 보존 | [인증](security-operations.md), [보안](security-operations.md) |
-| D-09 | 라이선스 | 공개 README, 프로젝트 라이선스는 정책 결정 전 보류 | 프로젝트·의존성·각 Feed 라이선스 | [제공자](pipeline.md) |
-| D-10 | Git 운영 | 역할별 작업 브랜치와 PR 검토, GitHub Flow 기준선 | Git Flow 전환·보호 규칙·승인 권한은 별도 결정 | [Git 운영](workflow.md) |
-| D-11 | HA·샤딩 | 사용자 요청: DB HA, Timescale 애플리케이션 샤딩, 출력 Feed 1차 분할 | shard/bucket 수, 복제 수준, 라우팅 세부·복구 실측 | [클러스터](architecture.md) |
-| D-12 | 장기 유지보수 | Docker·소스 설치·자동 릴리스 업데이트, 2029~2030 유지와 Laravel 14 검토 | 지원 조합·업그레이드 주기·서명·승인·복구 정책 | [운영](security-operations.md) |
+| ID | 주제 | 확인된 방향 | 남은 결정 | 설계 제안(미검증) | 책임 문서 |
+| --- | --- | --- | --- | --- | --- |
+| D-01 | 초기 Feed | 공공 WHOIS·분기 IoC·C-TAS 및 일반 Feed 연동 요청 | 최신 API·인증·주기·재배포 권리·샘플 승인 | 수집 주기 24시간(소스별 override), 소스당 동시 실행 1개, 재시도 지수 백오프 최대 3회; 직전 대비 건수 50% 이상 감소 시 자동 승인하지 않고 검토 대기, 전체 목록 소스의 완전 빈 응답은 즉시 거부. 실제 API·인증·재배포 권리는 여전히 외부 사실 확인 필요 | [제공자](pipeline.md) |
+| D-02 | 정규화 | IPv4/IPv6/CIDR/Domain/URL, 여러 파서 | IDNA·host bit·URL 세부 규칙과 버전 | IPv4-mapped IPv6는 IPv4로도 정규화해 두 표현을 연결, 특수 용도 주소(RFC 6890 loopback·link-local·문서용 등)는 지표로 채택하지 않고 거부; CIDR host bit 입력은 자동 보정 없이 거부; Domain은 후행 점 제거 + IDNA UTS-46 non-transitional 정규화, wildcard(`*.`)는 별도 타입; URL은 scheme을 http/https로 제한하고 경로·쿼리는 원본 대소문자·순서 보존 | [파이프라인](pipeline.md) |
+| D-03 | 수명·이력 | DNS 변화·출처·정제 및 배포 등록 기간 추적 | TTL 외 지표 수명, 실패 유예, 원문·이력 보존 | 검증 통과 원문 스냅샷 90일 보존(실패·거부 스냅샷 30일), 최신 성공 스냅샷이 예상 수집 주기의 3배(기본 72시간)를 넘으면 stale 표시, DNS 파생 지표는 연속 3회 또는 24시간 이상 무응답/NXDOMAIN일 때만 제거 후보로 표시하고 최근 정상 응답을 최대 7일 stale 유지 | [DB](architecture.md), [보강](pipeline.md) |
+| D-04 | Profile·예외 | 복제·다중 소스/Allowlist, 예외·모니터링, /24 승격 | 승격·해제 임계치, 교차 타입·부분 CIDR·예외 우선순위 | 기본 Profile은 소스·Allowlist 없이 생성되고 명시적 활성화 전 `enabled=false`; 예외 우선순위(높은 순) `quarantine` > `distribution_exclude` > `monitor_only` > `score_ignore` > `tag_only`(`exclude`는 정제 단계에서 선적용, `force_include`는 이 순서를 덮어쓰지 않음); 부분 겹침 CIDR 분할 상한 8개(초과 시 자동 분할 대신 게시 거부) | [Profile](profiles-api.md) |
+| D-05 | 출력 | TXT/CSV/JSON/hosts, 직접·파생·혼합 구분, 불변 스냅샷 기준선 | 경로·정렬·크기·stale·빈 결과·revision 보존 | 이전 revision 조회 가능 기간 7일(정책 변경 시 보존 기간과 무관하게 즉시 차단); 상태 코드 최초 게시 전 404, 유효한 빈 결과 200, stale 초과 200+`X-Feed-Stale: true`, 완전 게시 불가 503; 목록 페이지 기본 50·최대 200·정렬 `created_at desc`; 중복 생성 요청은 409 + 진행 중 작업 ID 반환, `Idempotency-Key` 동일 시 신규 작업 생성 안 함 | [API](profiles-api.md) |
+| D-06 | 기술·DB | Laravel/Python 분리, 복수 DB, Timescale 선택 확장, 단일 스키마 소유권 | 실제 버전·패키지·DB 호환 CI·성능 | 실제 패키지·DB 버전 조합은 외부 사실 확인이 필요해 여전히 미정. CI 매트릭스만 제안: MariaDB·PostgreSQL 각 최신 안정 버전 1개 + Timescale 확장 조합 1개를 최소 커버리지로 시험 | [아키텍처·데이터](architecture.md) |
+| D-07 | 운영 목표 | 로그·백업·오류 경보·복구·업데이트 요청 | 규모·지연·보관·RPO/RTO·알림 채널·임계치 | 요청 제한 Feed 다운로드 IP당 분당 30회·관리 API 계정당 분당 120회; 수집 상한 응답 100MB·압축 해제 500MB·행 8KB·실행 10분·소스 간 동시 5개; RPO 24시간·RTO 4시간, 복구 훈련 분기 1회; 백업 보존 일간 14일 + 주간 8주 + 원격 복제본 1곳 이상; 경보 채널 기본 email(+선택 webhook), 동일 dedup key cooldown 15분 | [운영](security-operations.md) |
+| D-08 | 인증·접근 | LDAP/AD·SAML·RBAC와 배포 4개 접근 모드 | IdP 연동 라이브러리·매핑·회수 시간·MFA·세션·감사 보존 | 기본 역할셋은 현재 후보 9개(super_admin~api_consumer) 유지; 관리 UI는 세션 쿠키+CSRF, Feed/관리 API 연동은 API token만 사용(CSRF 대상 제외); 권한·그룹 변경은 동기화 주기 기준 15분 이내 세션/token에 반영; IdP 장애 중 기존 세션은 자연 만료까지 유지하되 신규 로그인은 fail-closed; 감사 로그 보존 1년. 실제 IdP 연동 라이브러리는 구현 시 확인 | [인증](security-operations.md), [보안](security-operations.md) |
+| D-09 | 라이선스 | 공개 README, 프로젝트 라이선스는 정책 결정 전 보류 | 프로젝트·의존성·각 Feed 라이선스 | 전부 외부 사실 확인이 필요해 제안값 없음 | [제공자](pipeline.md) |
+| D-10 | Git 운영 | 역할별 작업 브랜치와 PR 검토, GitHub Flow 기준선 | Git Flow 전환·보호 규칙·승인 권한은 별도 결정 | main 브랜치 보호 제안: PR 1인 이상 승인 + CI 통과 필수, force-push·직접 push 금지 | [Git 운영](workflow.md) |
+| D-11 | HA·샤딩 | 사용자 요청: DB HA, Timescale 애플리케이션 샤딩, 출력 Feed 1차 분할 | shard/bucket 수, 복제 수준, 라우팅 세부·복구 실측, `profile_id`/`distribution_profile_id` 필드 정합(동일 필드의 문맥별 별칭인지 별개 필드인지) | 초기 가상 버킷 256개/Feed, IPv6 grouping 기본 `/64`(Profile별 override 가능), 그룹 경계를 넘는 큰 CIDR는 최대 4개 range로 분할 조회(초과 시 게시 거부), 배치 모드는 기본 single(복제가 필요한 Feed만 replicated=2로 전환); `distribution_profile_id`는 `profile_id`의 라우팅·로그 문맥 별칭으로 통일 제안 | [클러스터](architecture.md) |
+| D-12 | 장기 유지보수 | Docker·소스 설치·자동 릴리스 업데이트, 2029~2030 유지와 Laravel 14 검토 | 지원 조합·업그레이드 주기·서명·승인·복구 정책 | 분기 1회 의존성·이미지 보안 점검, 주요 버전 업그레이드는 별도 feature 브랜치에서 정식 릴리스로 최소 1회 검증 후 반영. 실제 지원 조합·서명 방식은 외부 사실 확인이 필요해 여전히 미정 | [운영](security-operations.md) |
 
 ## 개발 단계
 

@@ -1,6 +1,6 @@
 # 보안·운영 설계
 
-연결: FR-014, FR-016, FR-017, NFR-001~NFR-007.
+연결: FR-011, FR-014, FR-016, FR-017, NFR-001~NFR-007.
 설치·인증·통신·백업·업데이트의 개발 계약이며 실행 가능한 운영 매뉴얼은 아닙니다.
 출력 생성·revision·stale 응답은 [Profile·API](profiles-api.md), DB·샤드 정합성은 [아키텍처](architecture.md)를 따릅니다.
 
@@ -57,7 +57,7 @@
 | authenticated | 유효 계정/token과 Profile 읽기 권한; IP 제한 없음 |
 | authenticated_ip_restricted | 계정/token·Profile 권한·허용 IP 모두 충족 |
 
-LDAP/SAML·세션·권한 회수는 [인증·권한](security-operations.md)을 따른다.
+LDAP/SAML·세션·권한 회수는 이 문서의 인증·RBAC 절을 따른다.
 Feed token을 지원하되 로그인 비밀번호를 다운로드 URL에 넣지 않는다.
 신뢰한 proxy CIDR에서 온 Forwarded/X-Forwarded-For만 해석하며 임의 헤더는 무시한다.
 다중 proxy 체인·IPv4/IPv6를 검증하고 컨테이너 gateway를 실제 소비자 IP로 오인하지 않는다.
@@ -75,7 +75,7 @@ Docker Compose와 소스 설치는 같은 설정·작업·스키마·출력 계�
 소스 설치는 Nginx/PHP-FPM과 systemd 관리 Laravel queue/scheduler·Python worker를 기준으로 한다.
 실제 서비스 수·이름·명령은 구현 때 제공한다. 현재 실행 가능한 설치 명령은 없다.
 코드에 Docker 서비스명·고정 /app 경로를 내장하지 않고 데이터·설정·로그·릴리스 경로를 구성 가능하게 한다.
-릴리스 전환은 [운영·백업](security-operations.md)을 따른다.
+릴리스 전환은 이 문서의 운영·백업·업데이트 절을 따른다.
 
 ## 인증·RBAC
 
