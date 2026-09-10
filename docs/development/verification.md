@@ -1,6 +1,6 @@
 # 검증 기준
 
-아래 기능 검증은 모두 미실행입니다. 문서 형식 점검은 기능·보안·운영 검증을 대신하지 않습니다.
+아래 TFR 기능 검증은 모두 미실행입니다. 문서 형식 점검이나 외부 프로젝트의 동작 확인은 TFR 기능·보안·운영 검증을 대신하지 않습니다.
 기준 동작은 [요구사항](requirements.md)과 담당 설계를 따르고, 미정 정책은 [결정 로그](workflow.md)에서 먼저 확정합니다.
 
 ## 문서 점검
@@ -51,16 +51,18 @@ FR-005 회귀 예시: 하루 뒤 동일 원문 수집은 새 관측이며 같은
 FR-013 회귀 예시: 예외 집합 v2가 발행돼도 v1을 고정한 재생성의 결과는 바뀌지 않습니다.
 시험 자료는 합성 또는 명시적으로 사용 승인된 자료만 사용합니다.
 
+### 회귀 사례 ID 규칙
+
+`ID` 열은 이 문서의 회귀 사례 각 행을 가리키는 고유 식별자이며 `<대표 FR/NFR-ID>-<2자리 순번>` 형식을 사용합니다.
+대표 FR/NFR-ID는 `연결 ID` 열에 나열된 항목 중 첫 번째이며, 순번은 모든 회귀 사례 표를 통틀어 같은 대표 ID를 가진 행이 추가된 순서대로 01부터 매깁니다.
+한번 부여한 ID는 행이 이후 재배치·삭제되어도 재사용하거나 앞당겨 채우지 않으며, 새 행은 해당 대표 ID의 마지막 순번 다음 번호를 append합니다.
+날짜는 넣지 않습니다. 같은 사례를 여러 시점에 반복 실행할 때도 ID가 안정적이어야 하며, 실행 시점은 아래 실행 결과 양식의 `실행일`로 별도 기록합니다.
+
 ### DNS·Output 수명 회귀 사례
 
 아래는 모두 **미실행 시험 계획**입니다. 수치가 있는 판정은 [D-03/D-05](workflow.md)의 미검증 설계 제안을 시험하기 위한 기대 결과이며,
 사용자 확정값·운영 기본값·구현 테스트 통과를 뜻하지 않습니다. 확정 시 정책 버전과 경계값을 함께 갱신합니다.
 DNS 상태 전이는 [수집·보강](pipeline.md), 제공 자격은 [Profile·API](profiles-api.md)를 기준으로 시험합니다.
-
-`ID` 열은 이 표의 각 행을 가리키는 고유 식별자이며 `<대표 FR-ID>-<2자리 순번>` 형식을 사용합니다.
-대표 FR-ID는 `연결 ID` 열에 나열된 항목 중 첫 번째이며, 순번은 같은 대표 FR-ID를 가진 행이 이 표에 추가된 순서대로 01부터 매깁니다.
-한번 부여한 ID는 행이 이후 재배치·삭제되어도 재사용하거나 앞당겨 채우지 않으며, 새 행은 해당 대표 FR-ID의 마지막 순번 다음 번호를 append합니다.
-날짜는 넣지 않습니다. 같은 사례를 여러 시점에 반복 실행할 때도 ID가 안정적이어야 하며, 실행 시점은 아래 실행 결과 양식의 `실행일`로 별도 기록합니다.
 
 | ID | 연결 ID | 입력·경계 | 기대 결과 |
 | --- | --- | --- | --- |
@@ -85,6 +87,55 @@ DNS 상태 전이는 [수집·보강](pipeline.md), 제공 자격은 [Profile·A
 | FR-009-10 | FR-009 | 정상 누락 또는 동일 음성 응답 뒤 상한 초과 회차를 거쳐 다시 정상 누락/음성 확인; 불완전 회차 중 유예 시각 도달 | 불완전 회차에서 확인 횟수 증가나 제거 확정 금지, 연속성 중단; 뒤의 완료 회차는 새 연속 구간의 첫 확인이며 앞뒤 회차를 합산하지 않음 |
 | FR-009-11 | FR-009, FR-007 | 상한 초과 회차를 반복하지만 기존 ip_b는 실제 양성 확인되지 않음; A만 상한 초과이고 AAAA는 완료, 또는 필요한 Resolver 하나만 상한 초과 | ip_b의 last_seen을 일괄 갱신하지 않고 최대 수명·부모 해제는 그대로 적용; 불완전한 타입/합성 결과로 누락 판정하지 않으며 독립적으로 완료된 다른 타입은 기존 규칙 적용 |
 | FR-009-12 | FR-009 | 질의(트랜잭션 ID·질문 section·Resolver) 불일치 또는 응답 바이트·파싱 제한으로 안전한 검증 불가 | 신규 주소 채택과 기존 관계의 양성 갱신을 하지 않음; 상한 부분 채택 규칙으로 응답 검증·자원 제한을 우회하지 않음 |
+
+## 외부 Feed 구현 참고와 사전 점검
+
+사용자 요청은 외부 구현을 개발 요구조건과 사전 이슈 점검의 참고 근거로 기록하는 것이다.
+검토 기준은 2026-09-10에 확인한 [ziyadnz/threat-intel-ip-feeds의 d2131c1 커밋](https://github.com/ziyadnz/threat-intel-ip-feeds/tree/d2131c1716af9b39b57030b50e555b690b561140)이다.
+아래 외부 동작은 해당 커밋의 코드 확인 근거이며 현재 이후 버전까지의 보증이 아니다. 코드 도입·Feed 선정·라이선스 결정 또는 TFR 기능 완료를 뜻하지 않는다.
+
+| 외부 구현에서 확인한 사례·근거 | TFR 연결 ID | 요구조건에 반영할 사전 점검·담당 문서 |
+| --- | --- | --- |
+| 일반 소스의 빈 결과에는 캐시 대체가 없고, OTX는 일부 페이지 실패 후에도 비어 있지 않은 결과로 캐시를 교체한다([수집 처리][ref-collect], [API 어댑터][ref-api]) | FR-001, D-01 | 기존 불완전본 교체 금지 유지. 페이지·cursor·조회 상한·정상 변경 없음의 구분을 [어댑터 계약](pipeline.md#완전성과-캐시-재사용)에 구체화 |
+| 지표 생성마다 first_seen과 last_seen에 같은 실행 시각을 넣는다([지표 모델][ref-entities]) | FR-005, FR-011, D-03 | 기존 관측·등록 기간 요구 유지. 최초 시각 보존과 재등장 구간을 [시간 계약](architecture.md#시간과-유효기간)에 구체화 |
+| 캐시 timestamp를 읽어도 만료를 검사하지 않고, API 어댑터의 캐시 반환은 일반 수집 결과처럼 전달된다([일반 캐시][ref-cache], [API 어댑터][ref-api]) | FR-001, FR-005, FR-007, D-03, D-05 | 기존 유한 수명 유지. 캐시 재사용과 신규 검증 성공의 전달·표시를 [파이프라인](pipeline.md#완전성과-캐시-재사용)·[운영 상태](security-operations.md#운영-상태-모델)에 구체화 |
+| 주소 객체는 입력 문자열을 유지하고, 기본 텍스트 파서는 IPv4 부분 문자열만 추출한다([지표 모델][ref-entities], [기본 파서][ref-parser]) | FR-002, FR-008, D-02 | 기존 정규화·다형식 파서 요구 유지. 동치 IPv6·CIDR prefix·host bit·명시 추출 범위를 [파서 계약](pipeline.md#파서-설정과-미리보기)과 회귀 시험으로 구체화 |
+| Allowlist가 후보 CIDR 전체를 덮지 못하면 해당 CIDR은 남는다([매칭 구현][ref-entities]) | FR-006, FR-012, FR-013, D-04 | [최종 제외·부분 겹침 계약](profiles-api.md#결정적-평가-순서-제안)은 이미 명시됨. 정책을 중복 정의하지 않고 개별 IP 예외를 포함한 원본 CIDR의 회귀 시험 추가 |
+| writer 예외를 기록해도 출력 use case는 성공을 반환한다([출력 처리][ref-write]) | FR-007, FR-019, NFR-003, D-05 | 기존 불변·다중 파일 일관성 요구 유지. 필수 파일 실패와 최종 작업 실패 전파를 [게시 단계](pipeline.md#생성게시와-장애-복구)·[운영 상태](security-operations.md#운영-상태-모델)에 구체화 |
+| STIX Indicator 출력에서 created·modified가 빠져 있다([STIX writer][ref-stix]) | FR-008 | 후속 STIX 입력 파서가 잘못된 외부 객체를 수신할 사례로 반영. [공식 스키마 검증](pipeline.md#파서-설정과-미리보기)을 요구하며 STIX 출력 기능을 새로 추가하지 않음 |
+| 신뢰 점수는 Source 수에 비례하며 같은 제공자의 하위 목록도 별도 Source다([점수 모델][ref-entities], [등록 목록][ref-cli]) | FR-004, FR-011, FR-012, D-01, D-04 | Source 개수와 독립 증거 수를 [집계 의미](architecture.md#등록-기간과-집계)에서 구분. 출처 계보·중복 가중 정책의 채택과 산식은 미정이며 외부 산식을 기본값으로 가져오지 않음 |
+| README의 소스 수·비동기 설명과 현재 등록 목록·스레드 구현이 다르고, 수집 단계 오류 이후 workflow가 계속 실행된다([README][ref-readme], [등록 목록][ref-cli], [workflow][ref-workflow]) | NFR-003, NFR-007, D-07, D-12 | [운영 상태](security-operations.md#운영-상태-모델)와 [유지보수 점검](security-operations.md#장기-유지보수)에 실패 전파·문서 대조 추가. 자동 갱신·CI 성공을 전체 기능 검증이나 모든 소스의 최신성으로 해석하지 않음 |
+
+### TFR 사전 회귀 사례
+
+아래는 모두 **미실행 시험 계획**이다. 앞선 외부 코드의 합성 동작 확인을 TFR의 통과 결과로 옮기지 않는다.
+기존 요구사항·설계 계약을 시험으로 구체화한 것이며 새 수치·지원 범위의 확정은 아니다.
+문서용 주소 예시는 매칭 단위의 합성 fixture이며 실제 수집 단계의 특수 용도 주소 거부 규칙과 구분한다.
+
+| ID | 연결 ID | 입력·경계 | 기대 결과 |
+| --- | --- | --- | --- |
+| FR-001-01 | FR-001 | 다중 페이지 전체 목록에서 첫 페이지 성공 후 나머지 실패, 반복 cursor 또는 조회 상한 도달 | 불완전 사유·범위를 기록하고 활성 스냅샷·최근 정상 캐시 교체 금지; 전체 Source 성공 비율로 승인 우회 불가 |
+| FR-001-02 | FR-001, FR-018 | 기존 정상 전체 목록 뒤 HTTP 200 빈 응답·로그인 HTML·전량 파싱 실패; 별도로 검증된 증분 변경 없음·해제 없음 | 전자는 기존 기여의 전량 해제로 해석하지 않고 D-01에 따라 거부; 후자는 어댑터의 증분 계약에 따라 기존 근거 유지 |
+| FR-005-02 | FR-005, FR-011 | 같은 Source-지표의 다음 정상 수집, 같은 작업 재배달, 출력 재생성, 제거 후 재등장 | first_seen 보존; last_seen은 실제 새 정상 관측만 반영; 중복 실행으로 관측 수 증가 금지, 재등장은 별도 활성 구간 |
+| FR-005-03 | FR-005, FR-007 | 원래 수집 시각을 고정한 캐시를 일반/API 어댑터에서 실패·예약상 건너뜀 때 재사용하며 stale/expire 경계 통과 | 캐시 기원·현재 시도 결과 표시; 최근 성공·last_seen·freshness·만료 기한 연장 금지; 기존 Profile 수명 정책대로 제외·재생성·제공 중단 |
+| FR-002-01 | FR-002 | 동일 IPv6의 축약·전체 표기, CIDR host bit 입력, 동일 값의 여러 Source 관측 | 같은 정규화 버전의 동치 주소는 지표 하나와 복수 관측으로 연결; host bit 입력은 D-02 제안에 따라 거부하고 CIDR을 단일 IP로 축소하지 않음 |
+| FR-008-01 | FR-008, FR-002 | IPv4·IPv6·CIDR·주석을 섞은 행 입력과 명시 token/regex 설정 | 선언한 타입·prefix 보존, 지원하지 않는 항목과 추출 오류를 미리보기에 표시; IPv4 부분 문자열만 찾아 성공한 것으로 숨기지 않음 |
+| FR-006-01 | FR-006, FR-012, FR-013 | 원본 Feed의 198.51.100.0/24 안에 Allowlist 또는 Profile 전체 배포 제외인 198.51.100.10 존재 | /24 승격 없이 받은 원본 CIDR에도 최종 제외 적용; 허용된 분할 한도에서 제외하거나 게시 거부, 해당 IP를 포함한 /24 그대로 게시 금지 |
+| FR-007-06 | FR-007, FR-019, NFR-003 | 고정 출력 계약의 필수 TXT 저장 후 CSV 저장 오류·checksum 불일치, 이후 상태 보고는 성공 | generation 게시 실패·기존 공개 포인터 유지; 새 불완전 manifest 제공 금지; CLI/scheduler/CI가 보고 단계 성공으로 실패를 덮어쓰지 않음 |
+| FR-008-02 | FR-008 | 후속 STIX 파서에 문법상 유효하지만 created/modified 누락·잘못된 시각·pattern·참조인 객체 입력 | 명시 STIX 버전의 스키마·의미 검증에서 거부 또는 격리하고 검증 버전·사유 기록; JSON 파싱 성공만으로 활성화하지 않음 |
+| FR-011-01 | FR-011, FR-004, FR-012 | 같은 제공자의 전체/하위 목록과 재집계 Feed가 같은 지표를 보고 | 등록 Source 수·고유 IP 수를 구분하고 독립 증거 수·악성 확률로 오표기하지 않음; 가중 선택 조건을 채택한다면 D-01/D-04 확정 정책을 별도 검증 |
+| NFR-007-01 | NFR-007, NFR-003 | 어댑터 등록·출력 형식·실행 방식 변경 후 이전 문서 유지, 기능 시험 없이 데이터 갱신 작업만 성공 | 문서와 등록·설정·계약 시험의 불일치 검출; 미실행 시험을 통과로 표시하지 않고 수집·게시·시험의 실제 상태를 구분 |
+
+[ref-collect]: https://github.com/ziyadnz/threat-intel-ip-feeds/blob/d2131c1716af9b39b57030b50e555b690b561140/threat_intel/application/use_cases/collect_threat_intel.py
+[ref-api]: https://github.com/ziyadnz/threat-intel-ip-feeds/blob/d2131c1716af9b39b57030b50e555b690b561140/threat_intel/infrastructure/sources/api_sources.py
+[ref-entities]: https://github.com/ziyadnz/threat-intel-ip-feeds/blob/d2131c1716af9b39b57030b50e555b690b561140/threat_intel/domain/entities.py
+[ref-cache]: https://github.com/ziyadnz/threat-intel-ip-feeds/blob/d2131c1716af9b39b57030b50e555b690b561140/threat_intel/infrastructure/cache/source_cache.py
+[ref-parser]: https://github.com/ziyadnz/threat-intel-ip-feeds/blob/d2131c1716af9b39b57030b50e555b690b561140/threat_intel/infrastructure/sources/base.py
+[ref-write]: https://github.com/ziyadnz/threat-intel-ip-feeds/blob/d2131c1716af9b39b57030b50e555b690b561140/threat_intel/application/use_cases/write_outputs.py
+[ref-stix]: https://github.com/ziyadnz/threat-intel-ip-feeds/blob/d2131c1716af9b39b57030b50e555b690b561140/threat_intel/infrastructure/writers/stix_writer.py
+[ref-cli]: https://github.com/ziyadnz/threat-intel-ip-feeds/blob/d2131c1716af9b39b57030b50e555b690b561140/threat_intel/presentation/cli.py
+[ref-readme]: https://github.com/ziyadnz/threat-intel-ip-feeds/blob/d2131c1716af9b39b57030b50e555b690b561140/README.md
+[ref-workflow]: https://github.com/ziyadnz/threat-intel-ip-feeds/blob/d2131c1716af9b39b57030b50e555b690b561140/.github/workflows/update.yml
 
 ## 실행 결과 양식
 
