@@ -26,12 +26,12 @@ FastAPI·Celery·Alembic·별도 프런트엔드 서버를 필수로 추가하�
 | UI | Inertia 3, React 19, TypeScript, Tailwind 4, Vite | 통합 빌드·브라우저 지원 |
 | Python | 3.13 기준, 3.14 호환 CI 후보, uv | 실행·라이브러리 호환성 |
 | Python 라이브러리 | HTTPX, dnspython, SQLAlchemy Core, Pydantic, redis-py, structlog | 버전 고정·라이선스·부하 시험 |
-| 공통 DB | PostgreSQL 18, MariaDB 11.8(D-06 확정: 12.3 LTS 대비 불필요한 기능·트랜잭션 계약 재검증 부담) | 동일 기능 계약 시험과 드라이버 |
+| 공통 DB | PostgreSQL 18, MariaDB 11.8 | 동일 기능 계약 시험과 드라이버 |
 | 확장 DB | 선택 PostgreSQL 버전과 호환되는 TimescaleDB | 실제 지원 조합·확장 기능 경계 |
 | Laravel 보조 도구 | Fortify, Sanctum, Horizon 후보 | LDAP/SAML·큐 계약과 중복 여부 |
 
 버전은 이 표를 단일 참조로 사용한다. 정확한 조합은 D-06에 검증 근거를 기록한 후 고정한다.
-Laravel 14 검토와 2029~2030년 유지보수 요구는 지속 업그레이드 전략이지 특정 버전 고정이나 지원 기간 보증이 아니다.
+2029\~2030년 유지보수 요구는 지속 업그레이드 전략이지 특정 버전 고정이나 지원 기간 보증이 아니다.
 
 ## 작업 전달 계약
 
