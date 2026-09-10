@@ -70,13 +70,14 @@ Control DB 마이그레이션은 Laravel이 소유한다.
 | `observation` | snapshot_id, indicator_id, raw_value, source_timestamp | 동일 지표의 복수 출처를 보존 |
 | `source_indicator_state` | source_id, indicator_id, first_seen, last_seen, expires_at, status | 출처별 현재 상태를 빠르게 조회 |
 | `enrichment` | id, indicator_id, kind, provider, observed_at, expires_at, status, payload | 공급자·시점별 결과 유지 |
-| `profile_version` | profile_id, version, definition, content_hash, created_at | 발행된 버전은 변경하지 않음 |
+| `collection_profile_version` | collection_profile_id, version, definition, content_hash, created_at | Source 묶음과 수집·보강 실행 정책의 불변 버전 |
+| `distribution_profile_version` | distribution_profile_id, version, definition, content_hash, created_at | 참조한 수집 프로파일 버전·Allowlist·예외 집합·출력 계약을 고정 |
 | `allowlist_version` | allowlist_id, version, entries, content_hash, created_at | 활성 버전과 이력 분리 |
-| `generation_run` | id, profile_version_id, input_manifest, status, generated_at | 사용한 스냅샷·정책·보강 결과 ID와 수명 평가 근거 고정 |
+| `generation_run` | id, distribution_profile_version_id, input_manifest, status, generated_at | 사용한 수집 프로파일 버전·스냅샷·정책·보강 결과 ID와 수명 평가 근거 고정 |
 | `artifact` | id, generation_run_id, format, path_ref, checksum, item_count, status | 검증된 생성 실행에 종속 |
-| `publication` | profile_id, output_contract_version, manifest_id, revision, published_at | 검증된 artifact 묶음의 현재 포인터 |
+| `publication` | distribution_profile_id, output_contract_version, manifest_id, revision, published_at | 검증된 artifact 묶음의 현재 포인터 |
 
-`input_manifest`는 Source 스냅샷, Profile·Allowlist 그룹·예외 규칙 집합의 정확한 버전,
+`input_manifest`는 Source 스냅샷, 수집·배포 프로파일과 Allowlist 그룹·예외 규칙 집합의 정확한 버전,
 parser/normalizer·DNS/ASN 정책과 보강 결과, 평가 시각, 출력 계약 및 routing epoch를 고정한다.
 해당 버전은 불변이며 생성·재시도 중 최신 설정을 다시 읽지 않는다.
 예외 규칙은 비활성·삭제된 항목도 과거 버전에서 해석 가능하게 보존한다.
@@ -160,7 +161,9 @@ Timescale 확장과 물리 배치는 이 문서의 HA·출력 Feed 샤딩 절을
 | --- | --- |
 | `parser_version`, `resolver_policy`, `asn_dataset` | 파서·보강의 불변 설정과 활성 버전 |
 | `dns_observation`, `dns_membership_interval` | 조회 회차·질의 타입·Resolver별 응답, 부모/출처/정책별 도메인-IP 상태·누락 사유와 활성 구간 |
-| `profile_source`, `profile_allowlist_group` | Profile의 다중 소스·그룹과 정확한 버전 연결 |
+| `collection_profile_source` | 수집 프로파일의 다중 Source와 정확한 버전 연결 |
+| `distribution_profile_collection_ref`, `distribution_profile_allowlist_group` | 배포 프로파일이 참조하는 수집 프로파일 버전과 Allowlist 그룹 |
+| `feed_client`, `client_token`, `client_access_log` | 머신 클라이언트 식별·토큰 수명과 회수·배포 프로파일별 접근 이력 |
 | `exception_rule_set_version`, `monitor_rule`, `alert_event` | 불변 예외 집합·적용 범위 및 원본 관측 기반 경보 분리 |
 | `membership_interval` | Feed별 정제 지표의 활성 [start, end) 구간 |
 | `publication_membership_interval` | 실제 공개 스냅샷에 포함된 지표의 구간 |

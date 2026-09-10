@@ -37,7 +37,7 @@
 ## API 접근과 비밀값
 
 - 관리 인증·RBAC와 아래 4개 Output 접근 모드를 구현하고 남은 매핑·세션 상세는 D-08에서 확정한다.
-- Profile을 구분할 수 있는 것과 해당 Feed를 읽을 수 있는 권한은 별개로 검사한다.
+- 배포 프로파일을 구분할 수 있는 것과 해당 Feed를 읽을 수 있는 권한은 별개로 검사한다.
 - 인증 실패 또는 권한 부족 상태에서 Feed 본문, 비밀 설정, 존재 여부가 불필요하게 드러나지 않도록 한다.
 - 비밀값은 저장소, 이미지, 출력 파일 및 일반 로그에 포함하지 않는다.
 - 토큰을 사용한다면 URL 쿼리와 경로에 넣지 않는 방식을 우선 제안한다.
@@ -47,16 +47,19 @@
 - 인증값 교체와 폐기는 서비스 운영 절차에 포함하고 변경 주체를 감사 기록에 남긴다.
 - 쿠키 인증을 선택하면 CSRF 및 세션 정책을 함께 설계한다. 선택 여부는 D-08에 따른다.
 - 요청 제한과 동시 다운로드 제한의 수치는 D-07의 운영 목표로부터 정한다.
+- 클라이언트별 요청 제한·쿼타는 전역 제한과 별개로 두고 둘 중 먼저 도달한 한도를 적용한다.
 
 ## Feed 접근 모드와 trusted proxy
 
 | 모드 | 허용 조건 |
 | --- | --- |
-| public | 해당 Profile의 명시적 공개 |
+| public | 해당 배포 프로파일의 명시적 공개 |
 | ip_restricted | 실제 소비자 IP가 허용 IP/CIDR에 포함 |
 | authenticated | 유효 계정/token과 Profile 읽기 권한; IP 제한 없음 |
 | authenticated_ip_restricted | 계정/token·Profile 권한·허용 IP 모두 충족 |
 
+접근 모드는 배포 프로파일이 선언하고, 실제 요청 주체는 [클라이언트](profiles-api.md) 엔터티로 식별한다.
+계정 기반 모드에서도 사람 계정을 Feed 소비용으로 전용하지 않고 머신 클라이언트 토큰을 사용한다.
 LDAP/SAML·세션·권한 회수는 이 문서의 인증·RBAC 절을 따른다.
 Feed token을 지원하되 로그인 비밀번호를 다운로드 URL에 넣지 않는다.
 신뢰한 proxy CIDR에서 온 Forwarded/X-Forwarded-For만 해석하며 임의 헤더는 무시한다.
@@ -121,13 +124,13 @@ monitor_operator/viewer/api_consumer이며 사용자 정의 역할을 지원한�
 - authoritative/additive/login_only/approval_required 동기화 모드를 구분한다.
 - authoritative라도 해당 외부 제공자의 매핑 범위만 갱신하고 로컬 부여 역할을 삭제하지 않는다.
 - 고권한 자동 부여는 기본 차단하고 별도 승인·감사를 요구한다.
-- 사용 중지·그룹 제거·권한 회수는 활성 세션과 token에도 반영한다.
+- 사용 중지·그룹 제거·권한 회수는 활성 세션과 token에도 반영한다. 클라이언트 토큰 회수·만료도 같은 상한을 따른다.
 - 회수 지연의 상한과 IdP 장애 중 기존 세션 정책을 명시한다.
 - 삭제된 계정의 감사 주체 참조는 보존하고 비활성 주체를 재사용하지 않는다.
 
 게시 승인·복구·업데이트·IdP/역할/샤드 변경은 별도 권한과 필요한 재인증으로 보호한다.
 권한·회수 판단은 권위 있는 최신 상태로 수행하며 stale replica나 캐시로 우회하지 않는다.
-Feed 소비자의 인증 성공은 모든 Profile에 대한 읽기 권한을 의미하지 않는다.
+Feed 클라이언트의 인증 성공은 모든 배포 프로파일에 대한 읽기 권한을 의미하지 않는다.
 
 ### 검증
 
@@ -184,7 +187,7 @@ LDAP 비활성화·이름 변경·sync 실패, SAML 서명/시간/재생/잘못�
 
 ### 로그·대시보드·경보
 
-JSON 로그에 request_id/job_id/collection_run_id/indicator_id/distribution_profile_id/snapshot_id/alert_event_id를 연결한다.
+JSON 로그에 request_id/job_id/collection_run_id/collection_profile_id/indicator_id/distribution_profile_id/client_id/snapshot_id/alert_event_id를 연결한다.
 Feed·DNS·ASN·로그인·권한·게시·백업·업데이트 실패와 소비자 접근을 구분한다.
 queue depth/worker lag, 파서 오류율, DB 지연, 샤드 용량, 생성 시간, 경보 전달 실패를 측정한다.
 health/readiness/version은 최소 정보만 노출하고 상세는 운영 권한으로 제한한다.
