@@ -6,29 +6,51 @@
 
 ## 역할
 
-Profile은 어떤 출처·지표 타입·선택 조건으로 어떤 출력을 만들지 선언한다.
-Allowlist는 Profile의 후보에서 명시적으로 제외할 지표나 범위를 선언한다.
+프로파일은 수집과 배포로 나눈다. 수집 프로파일은 어떤 Source를 어떤 정책으로 수집·보강할지 선언하고,
+배포 프로파일은 그 결과에 Allowlist와 예외를 계산 반영해 어떤 출력을 만들지 선언한다.
+클라이언트는 배포 프로파일의 출력을 가져가는 주체이며 이 문서의 클라이언트 관리 절에서 다룬다.
+Allowlist는 배포 후보에서 명시적으로 제외할 지표나 범위를 선언한다.
 Allowlist에 해당한다는 것은 안전성 판정이 아니라 해당 출력에서 제외하는 운영 정책을 뜻한다.
 출처 관측 이력은 제외 여부와 관계없이 [데이터 모델](architecture.md)에 따라 유지한다.
 
-## Profile 필드 제안
+하나의 Source를 여러 수집 프로파일이 참조할 수 있고, 하나의 배포 프로파일이 여러 수집 프로파일을 입력으로 삼을 수 있다.
+같은 수집 결과를 서로 다른 Allowlist·출력 계약으로 배포하려고 수집을 중복 실행하지 않는다.
+
+## 수집 프로파일 필드 제안
 
 | 필드 | 의미 |
 | --- | --- |
-| `profile_id`, `version` | 안정적인 식별자와 불변 버전 |
+| `collection_profile_id`, `version` | 안정적인 식별자와 불변 버전 |
+| `name`, `description` | 수집 목적 |
+| `source_ids` | 포함할 Source를 명시한 목록 |
+| `schedule_override` | 소스별 기본 주기를 덮어쓸 때의 수집 주기·재시도 |
+| `parser_policy_ref`, `normalizer_policy_ref` | 적용할 파서·정규화 정책 버전 |
+| `enrichment_policy` | DNS·ASN 조회 수행 여부와 Resolver 정책 연결, 보강 결과 만료 처리 |
+| `enabled` | 예약 수집 대상 여부 |
+
+## 배포 프로파일 필드 제안
+
+| 필드 | 의미 |
+| --- | --- |
+| `distribution_profile_id`, `version` | 안정적인 식별자와 불변 버전 |
 | `name`, `description` | 사용 목적과 대상 소비자 |
-| `source_ids` | 포함할 소스를 명시한 목록 |
+| `collection_profile_refs` | 입력으로 사용할 수집 프로파일 ID와 정확한 버전 |
 | `indicator_types` | IP/CIDR/Domain/URL 중 허용한 타입 |
 | `selection_rules` | 출처 수 등 지원이 확정된 선택 조건 |
-| `enrichment_policy` | 선택 조건에 필요한 보강 항목과 만료 처리 |
+| `derived_output_policy` | DNS 파생 IP·혼합 출력의 포함 여부 |
 | `freshness_policy` | Source별 필수 여부·stale 허용, DNS missing/stale 기여 포함 여부와 제공 기한 평가 |
 | `allowlist_refs` | 적용할 Allowlist ID와 정확한 버전 |
+| `exception_rule_set_ref` | 배포 단계에 반영할 예외 규칙 집합 버전 |
 | `output_contract_ref` | 형식·정렬·분할·엔드포인트 계약 버전 |
+| `access_mode` | [Feed 접근 모드](security-operations.md) 4종 중 하나 |
 | `enabled` | 예약 생성·게시 대상 여부 |
+
+DNS·ASN 보강은 두 프로파일에 나뉜다. **조회를 수행할지는 수집 프로파일**이, **파생 결과를 출력에 포함할지는 배포 프로파일**이 정한다.
+어느 한쪽만으로 파생 IP가 배포되지 않으며, 조회를 수행하지 않은 수집 프로파일을 입력으로 삼은 배포 프로파일은 파생 출력을 선택할 수 없다.
 
 필드 기본값과 필수 여부는 D-04, 출력 형식·소비자별 제약은 D-05에서 결정한다.
 지원하지 않는 필터나 지표 타입은 무시하지 않고 설정 검증에서 실패시킨다.
-명시적인 빈 소스 목록을 전체 소스 선택으로 해석하지 않는 방안을 제안한다.
+명시적인 빈 Source 목록이나 빈 수집 프로파일 목록을 전체 선택으로 해석하지 않는 방안을 제안한다.
 
 ## Allowlist 항목 제안
 
@@ -68,12 +90,12 @@ IP 예외가 큰 CIDR과 일부만 겹치면 해당 CIDR이 IP를 계속 포함�
 여러 Allowlist와 Profile 전체 배포 제외는 합집합으로 적용한다. `force_include`는 이 최종 제외 집합을 덮어쓰지 않는다.
 알 수 없는 필수 조건·정책 오류는 이전 정상 산출물을 유지하는 생성 실패로 처리한다.
 
-## Profile 수명과 선택
+## 프로파일 수명과 선택
 
-기본 Profile에서 생성하거나 사용자 Profile을 복제하고 미리보기·활성화·비활성화·삭제·버전 복원을 제공한다.
+수집·배포 프로파일 모두 기본 프로파일에서 생성하거나 기존 프로파일을 복제하고 미리보기·활성화·비활성화·삭제·버전 복원을 제공한다.
 템플릿과 복제본은 별도 ID로 관리하여 원본 수정이 복제본에 자동 전파되지 않는다.
-소스·Allowlist 그룹은 여러 개 선택하고 DNS Resolver/ASN 정책·지표 기원·출력 형식을 버전에 포함한다.
-기본 Profile의 정책 값은 D-04에서 확정하고 공격적 차단 기본값을 임의로 넣지 않는다.
+수집 프로파일은 소스와 DNS Resolver/ASN 정책을, 배포 프로파일은 Allowlist 그룹·지표 기원·출력 형식을 버전에 포함한다.
+기본 프로파일의 정책 값은 D-04에서 확정하고 공격적 차단 기본값을 임의로 넣지 않는다.
 삭제·비활성화의 예약 중단, 공개본 회수, 이력 보존 효과를 구분한다.
 
 Domain의 URL host 적용, 신뢰 도메인의 DNS 파생 IP 제외는 명시 교차 타입 정책으로만 허용한다.
@@ -162,18 +184,18 @@ Source 수와 IP 수를 별도 집계하고 동일 Source 내 조건과 선택 S
 
 | 메서드·경로 예시 | 의미 | 계약 후보 |
 | --- | --- | --- |
-| `GET /feeds/v1/{profile_id}/{indicator_type}` | 현재 게시된 Feed | 한 응답은 하나의 불변 revision |
-| `HEAD /feeds/v1/{profile_id}/{indicator_type}` | Feed 메타데이터 | GET과 같은 상태·revision, 본문 없음 |
-| `GET /api/v1/profiles/{profile_id}/status` | 게시·입력 상태 | 관리 권한으로 freshness 및 최근 실패 조회 |
-| `GET /feeds/v1/{profile_id}/manifest` | 다중 파일 출력의 일관된 목록 | 한 revision과 타입별 불변 경로·체크섬 |
-| `GET /feeds/v1/{profile_id}/revisions/{revision}/{indicator_type}` | 특정 revision의 파일 | 같은 revision의 내용은 변경하지 않음 |
+| `GET /feeds/v1/{distribution_profile_id}/{indicator_type}` | 현재 게시된 Feed | 한 응답은 하나의 불변 revision |
+| `HEAD /feeds/v1/{distribution_profile_id}/{indicator_type}` | Feed 메타데이터 | GET과 같은 상태·revision, 본문 없음 |
+| `GET /api/v1/distribution-profiles/{id}/status` | 게시·입력 상태 | 관리 권한으로 freshness 및 최근 실패 조회 |
+| `GET /feeds/v1/{distribution_profile_id}/manifest` | 다중 파일 출력의 일관된 목록 | 한 revision과 타입별 불변 경로·체크섬 |
+| `GET /feeds/v1/{distribution_profile_id}/revisions/{revision}/{indicator_type}` | 특정 revision의 파일 | 같은 revision의 내용은 변경하지 않음 |
 
 - 출력은 IPv4/IPv6/CIDR/Domain/URL과 직접 IP·DNS 파생 IP·혼합을 구분한다. 정확한 경로 이름은 D-05에서 확정한다.
 - TXT/CSV/JSON/hosts를 지원하며 format 선택·표현별 ETag·Content-Type을 명시한다. hosts에 URL/CIDR을 넣지 않는다.
 - manifest는 표현별 불변 경로·checksum·건수·정책·입력·라우팅 버전을 제공한다. changes는 비교할 기준/대상 revision을 명시한다.
 - 텍스트 출력은 한 줄에 한 항목을 제안하며 UTF-8, 줄바꿈, 정렬 및 끝 개행을 명시한다.
 - IP·CIDR·Domain·URL 정규화와 중복 제거 규칙은 D-02 결정에 맞춘다.
-- Profile의 Source 선택·Allowlist 결과를 반영한 게시 완료 artifact만 제공한다.
+- 배포 프로파일이 참조한 수집 결과와 Allowlist 반영을 마친 게시 완료 artifact만 제공한다.
 - 요청 시작 시 공개 revision을 고정하여 응답 도중 새 파일 내용이 섞이지 않도록 한다(FR-007).
 - 다중 파일 지원 시 소비자는 manifest를 한 번 읽고 불변 경로를 사용한다. 타입별 현재 경로를 여러 번 읽는 것은 동일 revision을 보장하지 않는다.
 - 불변 경로에도 인증·권한 검사를 적용한다. 이전 revision의 제공 기한·회수·stale 정책과 파일 보관 기간을 D-03·D-05에서 함께 정한다.
@@ -181,9 +203,9 @@ Source 수와 IP 수를 별도 집계하고 동일 Source 내 조건과 선택 S
 - 게시 시각과 마지막 입력 성공 시각은 별도 필드 또는 헤더로 구분해 제공한다.
 - 헤더 후보는 `X-Feed-Revision`, `X-Feed-Published-At`, `X-Feed-Stale`이며 이름은 D-05에서 정한다.
 - 성공 본문에 오류 설명이나 관리 메타데이터를 항목처럼 섞지 않는다.
-- Profile 간 또는 권한 간 캐시가 섞이지 않도록 캐시 키와 공유 캐시 허용 여부를 명시한다.
+- 배포 프로파일 간 또는 권한 간 캐시가 섞이지 않도록 캐시 키와 공유 캐시 허용 여부를 명시한다.
 - 인증·권한 확인은 조건부 요청의 `304` 응답에도 적용한다.
-- 첫 게시 전, 유효한 빈 결과, stale 초과, 삭제된 Profile을 서로 구분하는 정책을 확정한다.
+- 첫 게시 전, 유효한 빈 결과, stale 초과, 삭제된 배포 프로파일을 서로 구분하는 정책을 확정한다.
 
 ### 관리 API 제안
 
@@ -193,10 +215,12 @@ Source 수와 IP 수를 별도 집계하고 동일 Source 내 조건과 선택 S
 | `GET, PATCH /api/v1/sources/{id}` | Source 조회·변경 | 구성 revision과 변경 필드 |
 | `POST /api/v1/sources/{id}/runs` | 수동 수집 요청 | 접수한 작업 ID와 조회 경로 |
 | `GET /api/v1/runs/{id}` | 작업 결과 조회 | 공통 작업 상태, 진행률·오류 분류 |
-| `GET, POST /api/v1/profiles` | Profile 조회·등록 | 이름, Source 선택, 출력 옵션 |
-| `GET, PATCH /api/v1/profiles/{id}` | Profile 조회·변경 | 구성 revision, 정책 참조 |
-| `GET, PATCH /api/v1/profiles/{id}/allowlist-groups` | 적용 그룹 조회·변경 | 그룹 ID·버전 참조, 기존 구성 revision |
-| `POST /api/v1/profiles/{id}/publications` | 출력 재생성 요청 | 접수한 작업 ID와 대상 구성 revision |
+| `GET, POST /api/v1/collection-profiles` | 수집 프로파일 조회·등록 | 이름, Source 선택, 수집·보강 정책 |
+| `GET, PATCH /api/v1/collection-profiles/{id}` | 수집 프로파일 조회·변경 | 구성 revision과 변경 필드 |
+| `GET, POST /api/v1/distribution-profiles` | 배포 프로파일 조회·등록 | 이름, 수집 프로파일 참조, 출력 옵션, 접근 모드 |
+| `GET, PATCH /api/v1/distribution-profiles/{id}` | 배포 프로파일 조회·변경 | 구성 revision, 정책 참조 |
+| `GET, PATCH /api/v1/distribution-profiles/{id}/allowlist-groups` | 적용 그룹 조회·변경 | 그룹 ID·버전 참조, 기존 구성 revision |
+| `POST /api/v1/distribution-profiles/{id}/publications` | 출력 재생성 요청 | 접수한 작업 ID와 대상 구성 revision |
 
 - Allowlist·예외 규칙 집합과 Profile 참조는 새 버전으로 변경한다. 공유 집합의 변경을 기존 Profile·생성 작업에 암묵적으로 전파하지 않는다.
 - Source URL 변경은 [보안·운영](security-operations.md)의 수집 경계 검증을 거친다.
@@ -204,7 +228,29 @@ Source 수와 IP 수를 별도 집계하고 동일 Source 내 조건과 선택 S
 - 비동기 작업 접수는 완료로 간주하지 않고 별도 조회에서 성공·실패를 확인한다.
 - 중복 실행의 거부·병합·대기 방식과 재시도 키 계약을 D-05에서 확정한다.
 - 구성 변경 응답과 실제 출력 게시를 분리하고 적용된 구성 revision을 상태 API에 표시한다.
-- Source·Profile 삭제와 비활성화의 데이터 보존 효과는 D-03 결정 후 계약에 추가한다.
+- Source·수집/배포 프로파일 삭제와 비활성화의 데이터 보존 효과는 D-03 결정 후 계약에 추가한다.
+- 수집 프로파일의 변경은 이를 참조하는 배포 프로파일에 자동 전파하지 않는다. 배포 프로파일이 참조 버전을 올려야 반영된다.
+
+### 클라이언트 관리 제안
+
+클라이언트는 배포 프로파일의 출력을 가져가는 머신 주체이며 사람 계정과 별도 엔터티다.
+LDAP/SAML로 관리하는 사람 계정을 Feed 소비용으로 전용하지 않으며, 클라이언트에는 대화형 로그인 경로를 두지 않는다.
+
+| 메서드·경로 예시 | 목적 | 주요 요청 또는 응답 |
+| --- | --- | --- |
+| `GET, POST /api/v1/clients` | 클라이언트 조회·등록 | 이름, 소유자·담당자, 설명, 허용 IP/CIDR, 활성 여부 |
+| `GET, PATCH /api/v1/clients/{id}` | 클라이언트 조회·변경 | 구성 revision과 변경 필드 |
+| `POST /api/v1/clients/{id}/tokens` | 토큰 발급 | 유효기간과 평문 토큰 1회 반환; 이후 조회 불가 |
+| `DELETE /api/v1/clients/{id}/tokens/{token_id}` | 토큰 회수 | 즉시 무효화, 회수 시각·주체 감사 기록 |
+| `GET /api/v1/clients/{id}/access-logs` | 접근 이력 조회 | 시각, 배포 프로파일, revision, 상태 코드, 전송량 |
+
+- 토큰은 해시로만 저장하고 발급 응답에서 한 번만 평문을 노출한다. 목록·상세 응답은 식별자·만료·마지막 사용 시각만 반환한다.
+- 토큰에는 유한한 만료를 요구하고 무기한 토큰을 기본값으로 두지 않는다. 만료와 회수는 별도 사유로 기록한다.
+- 회수·만료·클라이언트 비활성화는 진행 중인 접근과 캐시 적중에도 적용한다. 반영 상한은 [인증·RBAC](security-operations.md)의 회수 계약을 따른다.
+- 클라이언트가 어떤 배포 프로파일을 읽을 수 있는지는 [권한 모델](security-operations.md)로 검사한다. 인증 성공이 모든 배포 프로파일의 읽기 권한을 뜻하지 않는다.
+- 클라이언트별 요청 제한·쿼타는 D-07의 전역 제한과 별개로 두고, 둘 중 먼저 도달한 한도를 적용한다. 초과는 `429`로 응답하며 재시도 가능 시점을 알린다.
+- 접근 이력은 인증 실패·권한 부족·기한 만료 응답도 구분해 남기고, 토큰 평문이나 인증 헤더는 기록하지 않는다.
+- 클라이언트 삭제 후에도 접근 이력의 주체 참조는 보존하고 식별자를 재사용하지 않는다.
 
 ### 상태 코드 및 오류 후보
 
@@ -226,8 +272,9 @@ Source 수와 IP 수를 별도 집계하고 동일 Source 내 조건과 선택 S
 | `/api/v1/parsers/preview` | 제한된 샘플·파서 revision, 추출·오류·중복; 외부 URL이면 수집 보안 검사 |
 | `/api/v1/resolvers`, `/api/v1/dns/jobs` | Resolver 설정·비교·예약/수동 조회·변화 이력 |
 | `/api/v1/asn/datasets`, `/api/v1/asn/jobs` | 데이터셋 검증·활성화, 개별/일괄 조회 |
-| `/api/v1/allowlist-groups` | 재사용 그룹·항목 버전 관리, Profile은 그룹 버전 참조 |
-| `/api/v1/profiles/{id}/clone`, `/api/v1/profiles/{id}/preview` | 복제, 이전 게시 대비 추가/제외/충돌 비교 |
+| `/api/v1/allowlist-groups` | 재사용 그룹·항목 버전 관리, 배포 프로파일은 그룹 버전 참조 |
+| `/api/v1/collection-profiles/{id}/clone` | 수집 프로파일 복제 |
+| `/api/v1/distribution-profiles/{id}/clone`, `/api/v1/distribution-profiles/{id}/preview` | 복제, 이전 게시 대비 추가/제외/충돌 비교 |
 | `/api/v1/exception-rules`, `/api/v1/monitor-rules`, `/api/v1/alerts` | 예외·모니터링 독립 관리, 경보 확인·해제·억제 |
 | `/api/v1/indicators/{id}/history` | 출처·DNS·정제·게시 등록 구간, 조회 기간·페이지 크기 제한 |
 | `/api/v1/identity-providers`, `/api/v1/roles` | 비밀 마스킹·고권한 검증·매핑 시험·감사 |
