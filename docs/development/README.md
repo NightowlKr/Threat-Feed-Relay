@@ -7,7 +7,7 @@
 
 | 문서 | 단일 책임 |
 | --- | --- |
-| [요구사항](requirements.md) | 제품 목표·범위, FR-001\~FR-020·NFR-001\~NFR-007과 수용기준 |
+| [요구사항](requirements.md) | 제품 목표·범위, FR-001\~FR-021·NFR-001\~NFR-007과 수용기준 |
 | [아키텍처·데이터](architecture.md) | 기술 후보, 작업 계약, 데이터 모델, DB HA·샤딩 |
 | [수집·보강](pipeline.md) | 파서·DNS·ASN·제공자 연동과 관측 수명 |
 | [Profile·배포 API](profiles-api.md) | 예외·Allowlist·집계·출력과 관리 API |

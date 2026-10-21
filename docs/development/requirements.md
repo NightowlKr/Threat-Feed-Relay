@@ -14,7 +14,7 @@ XML/STIX·plugin, DoT/DoH, 온라인 재균형은 후속 개발 단계이며 제
 | FR-001 | 사용자 요청: 외부 Threat/Blacklist Feed 수집 | 원문 참조·수집 실행·성공/실패·건수 연결; 부분 실패로 정상 스냅샷을 교체하지 않음 | [파이프라인](pipeline.md), [제공자](pipeline.md) |
 | FR-002 | 사용자 요청: IP/CIDR/Domain/URL 정규화 | IPv4/IPv6·중복·오류와 URL 경로/쿼리 보존 사례 검증; 버전별 재현 | [파이프라인](pipeline.md) |
 | FR-003 | 사용자 요청: DNS·ASN 보강 | 수신 차단 Domain의 IP를 출처·부모별 DNS 파생 기여로 연결; 제공자·조회 시각·유효기간·실패 기록, 실패가 원본 삭제·안전 판정으로 바뀌지 않음 | [보강](pipeline.md) |
-| FR-004 | 사용자 요청: Profile별 출력 | 기본 Profile, 생성·복제·수정·비활성화, 다중 Source/Allowlist 그룹; 고정 입력·정책의 결정적 결과 | [Profile](profiles-api.md) |
+| FR-004 | 사용자 요청: 수집·배포 프로파일 분리와 Profile별 출력 | 수집 프로파일은 Source 묶음·수집/보강 실행 정책을, 배포 프로파일은 Allowlist·예외 반영과 출력 계약을 소유; 각각 생성·복제·수정·비활성화와 다중 참조, 고정 입력·정책의 결정적 결과 | [Profile](profiles-api.md) |
 | FR-005 | 사용자 요청: 출처·수집 이력 | 같은 지표의 복수 출처 보존, 한 Source 해제·실패가 다른 유효 출처를 훼손하지 않음 | [DB](architecture.md) |
 | FR-006 | 사용자 요청: Allowlist | IP/CIDR/Domain/wildcard/URL/ASN 규칙·설명·근거·만료, 다중 그룹; 최종 출력의 제외 사유 추적 | [Profile](profiles-api.md) |
 | FR-007 | 대화 기준선: 불변 출력 스냅샷 | 미완성·일부 샤드 누락·구세대 덮어쓰기 차단; manifest 고정 다중 파일 일관성, 기여 만료 시 새 revision 생성과 제공 상한 적용 | [API](profiles-api.md), [클러스터](architecture.md) |
@@ -31,6 +31,7 @@ XML/STIX·plugin, DoT/DoH, 온라인 재균형은 후속 개발 단계이며 제
 | FR-018 | 사용자 요청: 공공데이터 및 C-TAS 연동 | WHOIS·분기 IoC와 차단/해제·기간 자료 구분, 순서 역전·중복·해제 없음·ZIP 오류 시험 | [제공자](pipeline.md) |
 | FR-019 | 사용자 요청: 형식·기원별 배포 | TXT/CSV/JSON/hosts와 직접 IP/DNS 파생/혼합, manifest·changes·checksum; 허용된 타입만 형식에 포함 | [API](profiles-api.md) |
 | FR-020 | 사용자 요청 및 대화 기준선: 관리 UI·API·작업 제어 | 설정 revision 충돌, 미리보기·예약/수동·재시도·취소·배치 진행률, 권한별 조회·변경 검증 | [API](profiles-api.md), [아키텍처](architecture.md) |
+| FR-021 | 사용자 요청: Feed 클라이언트 관리 | 사람 계정과 구분되는 머신 클라이언트 등록, API 토큰 발급·회수·만료, 클라이언트별 요청 제한·쿼타, 배포 프로파일별 접근 이력 조회; 토큰 회수가 진행 중 접근에도 반영 | [API](profiles-api.md), [보안](security-operations.md) |
 
 ## 비기능 요구사항
 
