@@ -7,8 +7,8 @@
 
 문서 변경마다 다음을 검사하고 실제 결과를 작업 보고에 기록합니다.
 
-- 상대 링크의 대상·대소문자·anchor, 이동 전 파일명 참조의 잔존 여부.
-- 같은 문서 안의 한글 헤딩 앵커 링크는 사용하지 않는다. GitHub blob 뷰는 헤딩에 `id`를 넣지 않아 프래그먼트로 이동하지 않는다(2026-09 실제 렌더링 확인).
+- 상대 링크의 대상·대소문자, 이동 전 파일명 참조의 잔존 여부.
+- 헤딩 앵커(`#...`) 링크는 같은 문서든 다른 문서든 사용하지 않는다. GitHub blob 뷰는 헤딩에 `id`를 넣지 않아 언어와 무관하게 프래그먼트가 이동하지 않는다(2026-10 실제 렌더링 재확인). 가리킬 절은 파일 링크와 절 이름으로 지시한다.
 - Markdown 코드블록·표, 충돌 표시·후행 공백·문자 깨짐 및 `git diff --check`.
 - FR-001\~FR-021, NFR-001\~NFR-007, D-01\~D-12의 정의와 참조 유지.
 - API/작업 상태·버전·보안 정책의 중복 정의와 모순.
@@ -114,15 +114,15 @@ DNS 상태 전이는 [수집·보강](pipeline.md), 제공 자격은 [Profile·A
 
 | 외부 구현에서 확인한 사례·근거 | TFR 연결 ID | 요구조건에 반영할 사전 점검·담당 문서 |
 | --- | --- | --- |
-| 일반 소스의 빈 결과에는 캐시 대체가 없고, OTX는 일부 페이지 실패 후에도 비어 있지 않은 결과로 캐시를 교체한다([수집 처리][ref-collect], [API 어댑터][ref-api]) | FR-001, D-01 | 기존 불완전본 교체 금지 유지. 페이지·cursor·조회 상한·정상 변경 없음의 구분을 [어댑터 계약](pipeline.md#완전성과-캐시-재사용)에 구체화 |
-| 지표 생성마다 first_seen과 last_seen에 같은 실행 시각을 넣는다([지표 모델][ref-entities]) | FR-005, FR-011, D-03 | 기존 관측·등록 기간 요구 유지. 최초 시각 보존과 재등장 구간을 [시간 계약](architecture.md#시간과-유효기간)에 구체화 |
-| 캐시 timestamp를 읽어도 만료를 검사하지 않고, API 어댑터의 캐시 반환은 일반 수집 결과처럼 전달된다([일반 캐시][ref-cache], [API 어댑터][ref-api]) | FR-001, FR-005, FR-007, D-03, D-05 | 기존 유한 수명 유지. 캐시 재사용과 신규 검증 성공의 전달·표시를 [파이프라인](pipeline.md#완전성과-캐시-재사용)·[운영 상태](security-operations.md#운영-상태-모델)에 구체화 |
-| 주소 객체는 입력 문자열을 유지하고, 기본 텍스트 파서는 IPv4 부분 문자열만 추출한다([지표 모델][ref-entities], [기본 파서][ref-parser]) | FR-002, FR-008, D-02 | 기존 정규화·다형식 파서 요구 유지. 동치 IPv6·CIDR prefix·host bit·명시 추출 범위를 [파서 계약](pipeline.md#파서-설정과-미리보기)과 회귀 시험으로 구체화 |
-| Allowlist가 후보 CIDR 전체를 덮지 못하면 해당 CIDR은 남는다([매칭 구현][ref-entities]) | FR-006, FR-012, FR-013, D-04 | [최종 제외·부분 겹침 계약](profiles-api.md#결정적-평가-순서-제안)은 이미 명시됨. 정책을 중복 정의하지 않고 개별 IP 예외를 포함한 원본 CIDR의 회귀 시험 추가 |
-| writer 예외를 기록해도 출력 use case는 성공을 반환한다([출력 처리][ref-write]) | FR-007, FR-019, NFR-003, D-05 | 기존 불변·다중 파일 일관성 요구 유지. 필수 파일 실패와 최종 작업 실패 전파를 [게시 단계](pipeline.md#생성게시와-장애-복구)·[운영 상태](security-operations.md#운영-상태-모델)에 구체화 |
-| STIX Indicator 출력에서 created·modified가 빠져 있다([STIX writer][ref-stix]) | FR-008 | 후속 STIX 입력 파서가 잘못된 외부 객체를 수신할 사례로 반영. [공식 스키마 검증](pipeline.md#파서-설정과-미리보기)을 요구하며 STIX 출력 기능을 새로 추가하지 않음 |
-| 신뢰 점수는 Source 수에 비례하며 같은 제공자의 하위 목록도 별도 Source다([점수 모델][ref-entities], [등록 목록][ref-cli]) | FR-004, FR-011, FR-012, D-01, D-04 | Source 개수와 독립 증거 수를 [집계 의미](architecture.md#등록-기간과-집계)에서 구분. 출처 계보·중복 가중 정책의 채택과 산식은 미정이며 외부 산식을 기본값으로 가져오지 않음 |
-| README의 소스 수·비동기 설명과 현재 등록 목록·스레드 구현이 다르고, 수집 단계 오류 이후 workflow가 계속 실행된다([README][ref-readme], [등록 목록][ref-cli], [workflow][ref-workflow]) | NFR-003, NFR-007, D-07, D-12 | [운영 상태](security-operations.md#운영-상태-모델)와 [유지보수 점검](security-operations.md#장기-유지보수)에 실패 전파·문서 대조 추가. 자동 갱신·CI 성공을 전체 기능 검증이나 모든 소스의 최신성으로 해석하지 않음 |
+| 일반 소스의 빈 결과에는 캐시 대체가 없고, OTX는 일부 페이지 실패 후에도 비어 있지 않은 결과로 캐시를 교체한다([수집 처리][ref-collect], [API 어댑터][ref-api]) | FR-001, D-01 | 기존 불완전본 교체 금지 유지. 페이지·cursor·조회 상한·정상 변경 없음의 구분을 [완전성과 캐시 재사용](pipeline.md)에 구체화 |
+| 지표 생성마다 first_seen과 last_seen에 같은 실행 시각을 넣는다([지표 모델][ref-entities]) | FR-005, FR-011, D-03 | 기존 관측·등록 기간 요구 유지. 최초 시각 보존과 재등장 구간을 [시간과 유효기간](architecture.md)에 구체화 |
+| 캐시 timestamp를 읽어도 만료를 검사하지 않고, API 어댑터의 캐시 반환은 일반 수집 결과처럼 전달된다([일반 캐시][ref-cache], [API 어댑터][ref-api]) | FR-001, FR-005, FR-007, D-03, D-05 | 기존 유한 수명 유지. 캐시 재사용과 신규 검증 성공의 전달·표시를 [완전성과 캐시 재사용](pipeline.md)·[운영 상태 모델](security-operations.md)에 구체화 |
+| 주소 객체는 입력 문자열을 유지하고, 기본 텍스트 파서는 IPv4 부분 문자열만 추출한다([지표 모델][ref-entities], [기본 파서][ref-parser]) | FR-002, FR-008, D-02 | 기존 정규화·다형식 파서 요구 유지. 동치 IPv6·CIDR prefix·host bit·명시 추출 범위를 [파서 설정과 미리보기](pipeline.md)와 회귀 시험으로 구체화 |
+| Allowlist가 후보 CIDR 전체를 덮지 못하면 해당 CIDR은 남는다([매칭 구현][ref-entities]) | FR-006, FR-012, FR-013, D-04 | 최종 제외·부분 겹침 계약은 [결정적 평가 순서 제안](profiles-api.md)에 이미 명시됨. 정책을 중복 정의하지 않고 개별 IP 예외를 포함한 원본 CIDR의 회귀 시험 추가 |
+| writer 예외를 기록해도 출력 use case는 성공을 반환한다([출력 처리][ref-write]) | FR-007, FR-019, NFR-003, D-05 | 기존 불변·다중 파일 일관성 요구 유지. 필수 파일 실패와 최종 작업 실패 전파를 [생성·게시와 장애 복구](pipeline.md)·[운영 상태 모델](security-operations.md)에 구체화 |
+| STIX Indicator 출력에서 created·modified가 빠져 있다([STIX writer][ref-stix]) | FR-008 | 후속 STIX 입력 파서가 잘못된 외부 객체를 수신할 사례로 반영. [파서 설정과 미리보기](pipeline.md)의 공식 스키마 검증을 요구하며 STIX 출력 기능을 새로 추가하지 않음 |
+| 신뢰 점수는 Source 수에 비례하며 같은 제공자의 하위 목록도 별도 Source다([점수 모델][ref-entities], [등록 목록][ref-cli]) | FR-004, FR-011, FR-012, D-01, D-04 | Source 개수와 독립 증거 수를 [등록 기간과 집계](architecture.md)에서 구분. 출처 계보·중복 가중 정책의 채택과 산식은 미정이며 외부 산식을 기본값으로 가져오지 않음 |
+| README의 소스 수·비동기 설명과 현재 등록 목록·스레드 구현이 다르고, 수집 단계 오류 이후 workflow가 계속 실행된다([README][ref-readme], [등록 목록][ref-cli], [workflow][ref-workflow]) | NFR-003, NFR-007, D-07, D-12 | [운영 상태 모델](security-operations.md)과 [장기 유지보수](security-operations.md)에 실패 전파·문서 대조 추가. 자동 갱신·CI 성공을 전체 기능 검증이나 모든 소스의 최신성으로 해석하지 않음 |
 
 ### TFR 사전 회귀 사례
 
