@@ -22,7 +22,7 @@ API·필드 등 문서 본문에 이미 구체 제안이 있는 항목은 중복
 | D-07 | 운영 목표 | 로그·백업·오류 경보·복구·업데이트 요청 | 규모·지연·보관·RPO/RTO·알림 채널·임계치, 클라이언트별 쿼타 기본값 | 요청 제한 Feed 다운로드 IP당 분당 30회·관리 API 계정당 분당 120회·클라이언트별 쿼타는 전역 제한과 별개 적용; 수집 상한 응답 100MB·압축 해제 500MB·행 8KB·실행 10분·소스 간 동시 5개; RPO 24시간·RTO 4시간, 복구 훈련 분기 1회; 백업 보존 일간 14일 + 주간 8주 + 원격 복제본 1곳 이상; 경보 채널 기본 email(+선택 webhook), 동일 dedup key cooldown 15분 | [운영](security-operations.md) |
 | D-08 | 인증·접근 | LDAP/AD·SAML·RBAC와 배포 4개 접근 모드, IdP 변경 감지와 직접 토큰 회수의 시간 기준 분리 | IdP 연동 라이브러리·매핑·MFA·세션·감사 보존, 전송 중 회수 경로의 구현·부하 검증 | 기본 역할셋은 현재 후보 9개(super_admin\~api_consumer) 유지; 관리 UI는 세션 쿠키+CSRF, Feed/관리 API 연동은 API token만 사용(CSRF 대상 제외); IdP 외부 변경 감지 상한과 로컬 회수 후 신규 요청·진행 중 전송의 시간 기준은 [보안·운영의 회수 계약](security-operations.md)을 단일 기준으로 사용한다. IdP 장애 중 기존 세션은 자연 만료까지 유지하되 신규 로그인은 fail-closed; 감사 로그 보존 1년. 실제 IdP 연동 라이브러리는 구현 시 확인 | [인증](security-operations.md), [보안](security-operations.md) |
 | D-09 | 라이선스 | 공개 README, 프로젝트 라이선스는 정책 결정 전 보류 | 프로젝트·의존성·각 Feed 라이선스 | 전부 외부 사실 확인이 필요해 제안값 없음 | [제공자](pipeline.md) |
-| D-10 | Git 운영 | 역할별 작업 브랜치와 PR 검토, GitHub Flow 기준선 | Git Flow 전환·보호 규칙·승인 권한은 별도 결정 | main 브랜치 보호 제안: PR 1인 이상 승인 + CI 통과 필수, force-push·직접 push 금지 | [Git 운영](workflow.md) |
+| D-10 | Git 운영 | Git Flow 전환 확정: `dev` 개발 통합, `main` 배포 기준, 작성 주체로 반영 경로 구분 | 보호 규칙 적용 시점·승인 권한·CI 도입 시점 | 전환 사유는 개발 착수와 배포의 분리이며 복수 배포 버전 안정화가 아니다. main 보호는 단계별로 적용 제안: 현재는 직접 push·force-push 금지와 PR 필수만 켜고 **승인 인원 0명**(단독 작성자는 자기 PR을 승인할 수 없어 승인 필수는 스스로를 막는다), CI 도입 후 필수 status check 추가, 협업자 합류 시 승인 1인 이상으로 상향하고 bypass 차단 | [Git 운영](workflow.md) |
 | D-11 | HA·샤딩 | 사용자 요청: DB HA, Timescale 애플리케이션 샤딩, 출력 Feed 1차 분할 | shard/bucket 수, 복제 수준, 라우팅 세부·복구 실측 | 초기 가상 버킷 256개/Feed, IPv6 grouping 기본 `/64`(Profile별 override 가능), 그룹 경계를 넘는 큰 CIDR는 최대 4개 range로 분할 조회(초과 시 게시 거부), 배치 모드는 기본 single(복제가 필요한 Feed만 replicated=2로 전환). `collection_profile_id`와 `distribution_profile_id`는 별개 엔터티로 확정했고 라우팅 경계는 `distribution_profile_id`를 사용한다 | [클러스터](architecture.md) |
 | D-12 | 장기 유지보수 | Docker·소스 설치·자동 릴리스 업데이트, 2029\~2030 유지와 주요 버전 업그레이드 검토 | 지원 조합·업그레이드 주기·서명·승인·복구 정책 | 분기 1회 의존성·이미지 보안 점검, 주요 버전 업그레이드는 별도 feature 브랜치에서 정식 릴리스로 최소 1회 검증 후 반영. 실제 지원 조합·서명 방식은 외부 사실 확인이 필요해 여전히 미정 | [운영](security-operations.md) |
 
@@ -58,28 +58,34 @@ API·필드 등 문서 본문에 이미 구체 제안이 있는 항목은 중복
 
 ## Git 운영
 
-현재 기준은 짧은 역할 브랜치에서 검토한 뒤 PR로 통합하는 GitHub Flow입니다.
+현재 기준은 `dev`를 개발 통합 브랜치로 두고 `main`을 배포 기준으로 삼는 Git Flow입니다.
+구동이 확인된 결과물만 `dev`에서 `main`으로 배포 PR로 통합합니다.
 특정 과거 문서 브랜치를 후속 작업의 고정 대상으로 사용하지 않습니다.
 브랜치 접두사는 저장소 명명 규칙이며 Git의 특별한 기능은 아닙니다.
 
 | 브랜치 | 역할·흐름 |
 | --- | --- |
-| `main` | 검토된 기준선; 직접 push하지 않고 승인된 PR로 통합 |
-| `feature/<topic>` | 기능·문서 추가; main에서 분기하여 main 대상 PR |
-| `bugfix/<topic>` | 일반 오류 수정; main에서 분기하여 main 대상 PR |
-| `hotfix/<topic>` | 운영 긴급 수정; 실제 배포 기준에서 분기하여 관련 유지보수 계열에도 반영 |
-| `release/<version>` | 필요 시 릴리스 안정화; 기준·통합 대상을 작업별 명시 |
-| `develop` | Git Flow 전환 시 다음 릴리스 통합; 현재 필수 아님 |
+| `main` | 배포 기준; 직접 push하지 않고 구동 확인 후 승인된 배포 PR로만 통합 |
+| `dev` | 개발 통합; 작업 결과가 모이는 기준선 |
+| `dev-<topic>` | 개별 작업의 기본 이름; dev에서 분기하여 dev 대상 PR |
+| `feature/<topic>` | 기능 추가를 구분해야 할 때; dev에서 분기하여 dev 대상 PR |
+| `bugfix/<topic>` | 일반 오류 수정; dev에서 분기하여 dev 대상 PR |
+| `hotfix/<topic>` | 운영 긴급 수정; 실제 배포 기준에서 분기해 main과 진행 중 dev/release에도 반영 |
+| `release/<version>` | 필요 시 릴리스 안정화; main과 dev로 통합 |
 | `master` | 다른 저장소의 기본 브랜치 명칭; 이 저장소에서는 main 사용 |
+
+작업을 어디에 반영할지는 작성 주체로 구분합니다.
+사용자가 직접 수행한 작업은 `dev`에 커밋할 수 있습니다. 작성자와 검토자가 같아 PR이 검토 지점을 더하지 않기 때문입니다.
+에이전트가 수행한 작업은 `dev-<topic>` 브랜치와 `dev` 대상 PR을 사용합니다. 변경 묶음 단위의 검토 화면을 남기기 위함입니다.
+`hotfix`·`release` 계열은 작성 주체와 무관하게 위 표의 흐름을 따릅니다.
 
 기존 변경·기준 커밋·원격을 확인하고 작업 파일만 커밋합니다.
 허용된 브랜치만 명시적으로 push하며 force push·전체 브랜치 push·자동 병합을 기본 절차로 두지 않습니다.
 승인된 PR 병합은 직접 main push와 구분합니다. 보호 규칙 설정·브랜치 삭제도 별도 승인 범위에서 수행합니다.
 커밋 메시지는 목적에 따라 `docs:`, `feat:`, `fix:`, `test:`, `chore:`를 사용합니다.
 
-복수 배포 버전의 안정화가 필요해 Git Flow로 전환하면 D-10을 갱신합니다.
-feature/bugfix는 develop으로, release는 main과 develop으로 통합합니다.
-hotfix는 배포 기준에서 분기해 main 및 진행 중 develop/release에도 반영하며 두 전략의 대상을 혼용하지 않습니다.
+전환 사유는 복수 배포 버전의 안정화가 아니라 개발 착수와 배포의 분리입니다. 구동이 확인되지 않은 결과물이 `main`에 들어가지 않게 합니다.
+두 전략의 대상을 혼용하지 않습니다.
 
 참고: [GitHub Flow](https://docs.github.com/en/get-started/using-github/github-flow),
 [Git Flow 원저자의 설명](https://nvie.com/posts/a-successful-git-branching-model/).
